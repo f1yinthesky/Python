@@ -1,5 +1,4 @@
 import random
-
 name = input("Hello! What is your name?\n")
 print(f"Well, {name}, I'm thinking of a number between 1 and 20.")
 
@@ -16,10 +15,10 @@ while count < max_count:
         print("Your guess is too high.")
     else:
         if count == 1:
-            print(f"Good job,{name}! You guessed my number in {count} guess!")
+            print(f"Good job, {name}! You guessed my number in {count} guess!")
         else:    
             print(f"Good job,{name}! You guessed my number in {count} guesses!")
-        break
+            print(f"Good job, {name}! You guessed my number in {count} guesses!")
 
 if number != target_number:
     print(f"Nope. The number I was thinking of was {target_number}")
