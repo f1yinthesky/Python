@@ -1,11 +1,12 @@
 import random
+import math
 
 name = input("Hello! What is your name?\n")
-min_num = 6
-max_num = 150
+min_num = int(input(f"Well, {name}, what is the minimum number you want to guess?\n"))
+max_num = int(input(f"Well, {name}, what is the maxium number you want to guess?\n"))
 print(f"Well, {name}, I'm thinking of a number between {min_num} and {max_num}.")
 target_number = random.randint(min_num, max_num)
-max_count = 8
+max_count = max(1, math.ceil(math.log2(max_num - min_num + 2)))
 count = 0
 while count < max_count:
     number = int(input("Take a guess.\n"))
