@@ -13,13 +13,10 @@ choice = int(input(
 computer_choice = random.randint(1, 3)
 
 def get_winner(choice, computer_choice):
-    if choice == computer_choice:
+    diff = (choice + 3 - computer_choice) % 3
+    if diff == 0:
         return "It's a tie!"
-    elif choice == 1 and computer_choice == 3:
-        return "You win!"
-    elif choice == 2 and computer_choice == 1:
-        return "You win!"
-    elif choice == 3 and computer_choice == 2:
+    elif diff == 1:
         return "You win!"
     else:
         return "You lose!"
