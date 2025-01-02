@@ -4,7 +4,14 @@ print ("""Enter your choice:
        1:rock
        2:paper
        3:scissors""")
-choice = int(input())
+
+
+choice = input()
+while choice not in {'1', '2', '3'}:
+    print ("Invalid choice. Please try again.")
+    choice = input()
+choice=int(choice)
+
 AI_choice = random.randint(1,3)
 
 print(f"Your choice is {choice}. My choice is {AI_choice}.")
