@@ -1,33 +1,18 @@
 import random
 import time
 from typing import Optional
-import threading
+from inputimeout import inputimeout, TimeoutOccurred 
 
-
-def get_input_with_timeout(timeout: int) -> Optional[int]:
-    result = None
-
-    def input_thread() -> int:
-        nonlocal result
-        result = int(input())
-
-    thread = threading.Thread(target=input_thread, daemon=True)
-    thread.start()
-    thread.join(timeout)
-
-    return result
-
-
-def try_get_int_input() -> Optional[int]:
+def try_get_int_input(timeout: float) -> Optional[int]:
     try:
-        return get_input_with_timeout(20)
-    except ValueError:
+        return int(inputimeout(timeout=timeout))
+    except (ValueError, TimeoutOccurred) as _e:
         return None
 
 
-def do_calculation(left: int, operator: str, right: int, result: int) -> bool:
-    print(f"{left}{operator}{right}=")
-    answer = try_get_int_input()
+def do_calculation(left: int, operator: str, right: int, result: int, timeout) -> bool:
+    print(f"{left} {operator} {right} =")
+    answer = try_get_int_input(timeout)
 
     if answer != result:
         print(f"Wrong!!!!!!!!!!!!!!!!!! The correct answer is {result}.\n")
@@ -37,7 +22,7 @@ def do_calculation(left: int, operator: str, right: int, result: int) -> bool:
         return True
 
 
-def do_one_calculation() -> bool:
+def do_one_calculation(timeout: float) -> bool:
     operators = ["+", "-", "*", "/"]
     operator = random.choice(operators)
 
@@ -50,23 +35,25 @@ def do_one_calculation() -> bool:
     mul_result = mul_left * mul_right
 
     if operator == "+":
-        return do_calculation(add_left, "+", add_right, add_result)
+        return do_calculation(add_left, "+", add_right, add_result, timeout)
     elif operator == "-":
-        return do_calculation(add_result, "-", add_left, add_right)
+        return do_calculation(add_result, "-", add_left, add_right, timeout)
     elif operator == "*":
-        return do_calculation(mul_left, "*", mul_right, mul_result)
+        return do_calculation(mul_left, "*", mul_right, mul_result, timeout)
     else:
-        return do_calculation(mul_result, "/", mul_left, mul_right)
+        return do_calculation(mul_result, "/", mul_left, mul_right, timeout)
 
 
 print("We are going to test your basic math skills.")
 num_of_questions = int(input("How many questions would you like to answer?\n"))
+timeout = float(input("How many seconds would you like to spend on each question?\n"))
 num_of_correct = 0
 num_of_wrong = 0
 start_time = time.time()
 for i in range(num_of_questions):
-    print(f"Question {i+1}:")
-    if do_one_calculation():
+    time_so_far = int((time.time() - start_time) * 100) /100
+    print(f"time {time_so_far}s Question {i+1}:")
+    if do_one_calculation(timeout):
         num_of_correct = num_of_correct + 1
     else:
         num_of_wrong = num_of_wrong + 1
