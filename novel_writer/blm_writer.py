@@ -11,7 +11,8 @@ context_size = 10
 batch_size = 32
 try_load_existing_model = True
 learning_rate = 1e-3
-learning_iterations = 1000
+# val loss 5.2-5.3 18000 steps seems the limit
+learning_iterations = 0
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
@@ -94,7 +95,8 @@ class BigramLanguageModel(torch.nn.Module):
     
 model = BigramLanguageModel(len(charset))
 model_file_name = f'm_{context_size}_{batch_size}.pt'
-model_file_path = Path(f'{root_dir}/{model_dir}/{model_file_name}')
+model_file_path_raw = f'{root_dir}/{model_dir}/{model_file_name}'
+model_file_path = Path(model_file_path_raw)
 if try_load_existing_model and model_file_path.exists():
     logger.info(f"Loading model from {model_file_path}.")
     model.load_state_dict(torch.load(model_file_path, weights_only=True))
@@ -126,6 +128,7 @@ def eval_loss(model, eval_iters):
 
 model.train()
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+save_number = 0
 for steps in range(learning_iterations):
     context, target = get_batch('train')
     logits, loss = model(context, target)
@@ -137,7 +140,8 @@ for steps in range(learning_iterations):
         loss = eval_loss(model, eval_iters)
         logger.info(f"step {steps} train loss {loss['train']:.4f} val loss {loss['val']:.4f}")
     if steps % 200 == 0:
-        torch.save(model.state_dict(), model_file_path)
+        torch.save(model.state_dict(), Path(f'{model_file_path_raw}_{save_number % 2}'))
+        save_number += 1
 
 
 loss = eval_loss(model, eval_iters)
