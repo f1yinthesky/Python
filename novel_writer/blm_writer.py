@@ -9,7 +9,11 @@ model_dir = r'/model'
 train_data_ratio = 0.9
 context_size = 10
 batch_size = 32
-try_load_existing_model = False
+try_load_existing_model = True
+learning_rate = 1e-3
+learning_iterations = 1000
+eval_interval = 50
+eval_iters = 20
 # Stage 0 end
 
 # Stage 1 data prepration
@@ -97,12 +101,50 @@ if try_load_existing_model and model_file_path.exists():
     model.eval()
     logger.info(f"Loading model done.")
 
-new_tokens = model.generate(torch.full((1,1), 2953, dtype=torch.long), 100)
-text = decode(new_tokens[0].tolist())
-print(text)
+def generate_text(model, max_token_length):
+    new_tokens = model.generate(torch.full((1,1), 0, dtype=torch.long), max_token_length)
+    text = decode(new_tokens[0].tolist())
+    logger.info(text)
+logger.info(f"generated text at after model {'loaded' if try_load_existing_model else 'initialized'}")
+generate_text(model, 100)
 
 # Stage 2 end
+
 # Stage 3 model training
+def eval_loss(model, eval_iters):
+    out = {}
+    model.eval()
+    for split in ['train', 'val']:
+        losses = torch.zeros(eval_iters)
+        for k in range(eval_iters):
+            context, target = get_batch(split)
+            _logits, loss = model(context, target)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
+
+model.train()
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+for steps in range(learning_iterations):
+    context, target = get_batch('train')
+    logits, loss = model(context, target)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+
+    if steps % eval_interval == 0:
+        loss = eval_loss(model, eval_iters)
+        logger.info(f'step {steps} train loss {loss['train']:.4f} val loss {loss['val']:.4f}')
+    if steps % 200 == 0:
+        torch.save(model.state_dict(), model_file_path)
+
+
+loss = eval_loss(model, eval_iters)
+logger.info(f'after training {loss['train']:.4f} val loss {loss['val']:.4f}')
+torch.save(model.state_dict(), model_file_path)
 # Stage 3 end
 # Stage 4 model generation
+logger.info(f"generated text at after model trained")
+generate_text(model, 100)
 # Stage 4 end
