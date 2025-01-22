@@ -10,6 +10,7 @@ train_data_ratio = 0.9
 context_size = 10
 batch_size = 32
 try_load_existing_model = True
+need_save_model = False
 learning_rate = 1e-3
 # val loss 5.2-5.3 18000 steps seems the limit
 learning_iterations = 0
@@ -126,6 +127,13 @@ def eval_loss(model, eval_iters):
     model.train()
     return out
 
+def save_model(model, model_file_path):
+    if need_save_model:
+        logger.info(f"Saving model to {model_file_path}.")
+        torch.save(model.state_dict(), model_file_path)
+        logger.info(f"Saving model done.")
+        
+
 model.train()
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 save_number = 0
@@ -140,15 +148,15 @@ for steps in range(learning_iterations):
         loss = eval_loss(model, eval_iters)
         logger.info(f"step {steps} train loss {loss['train']:.4f} val loss {loss['val']:.4f}")
     if steps % 200 == 0:
-        torch.save(model.state_dict(), Path(f'{model_file_path_raw}_{save_number % 2}'))
+        save_model(model, Path(f'{model_file_path_raw}_{save_number % 2}'))
         save_number += 1
 
 
 loss = eval_loss(model, eval_iters)
 logger.info(f"after training {loss['train']:.4f} val loss {loss['val']:.4f}")
-torch.save(model.state_dict(), model_file_path)
+save_model(model, model_file_path)
 # Stage 3 end
 # Stage 4 model generation
 logger.info(f"generated text at after model trained")
-generate_text(model, 100)
+generate_text(model, 500)
 # Stage 4 end
