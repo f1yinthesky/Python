@@ -135,13 +135,13 @@ for steps in range(learning_iterations):
 
     if steps % eval_interval == 0:
         loss = eval_loss(model, eval_iters)
-        logger.info(f'step {steps} train loss {loss['train']:.4f} val loss {loss['val']:.4f}')
+        logger.info(f"step {steps} train loss {loss['train']:.4f} val loss {loss['val']:.4f}")
     if steps % 200 == 0:
         torch.save(model.state_dict(), model_file_path)
 
 
 loss = eval_loss(model, eval_iters)
-logger.info(f'after training {loss['train']:.4f} val loss {loss['val']:.4f}')
+logger.info(f"after training {loss['train']:.4f} val loss {loss['val']:.4f}")
 torch.save(model.state_dict(), model_file_path)
 # Stage 3 end
 # Stage 4 model generation
