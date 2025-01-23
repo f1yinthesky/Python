@@ -35,7 +35,29 @@ with open(data_file_path, 'r', encoding='gbk') as f:
     text = f.read()
 logger.info(f"Loading data done.")
 logger.info(f'number of total data text {len(text)}.')
-charset = sorted(list(set(text)))
+
+charset_file_name = f'blm_{context_size}_{batch_size}.txt'
+charset_file_path_raw = f'{root_dir}/{model_dir}/{charset_file_name}'
+charset_file_path = Path(charset_file_path_raw)
+
+def load_charset(charset_file_path):
+    with open(charset_file_path, 'r', encoding='gbk') as f:
+        charset = f.read()
+    return list(charset)
+
+def save_charset(charset, charset_file_path):
+    with open(charset_file_path, 'w', encoding='gbk') as f:
+        f.write(''.join(charset))
+
+if try_load_existing_model and charset_file_path.exists():
+    logger.info(f"Loading charset from {charset_file_path}.")
+    charset = load_charset(charset_file_path)
+    logger.info(f"Loading charset done.")
+else:
+    charset = sorted(list(set(text)))
+if need_save_model:
+    save_charset(charset, charset_file_path)
+
 logger.info(f'number of total chars {len(charset)}.')
 logger.info(f'first 100 charset {charset[0: 100]}.')
 sample_text_size = 100
@@ -95,7 +117,7 @@ class BigramLanguageModel(torch.nn.Module):
         return idx
     
 model = BigramLanguageModel(len(charset))
-model_file_name = f'm_{context_size}_{batch_size}.pt'
+model_file_name = f'blm_{context_size}_{batch_size}.pt'
 model_file_path_raw = f'{root_dir}/{model_dir}/{model_file_name}'
 model_file_path = Path(model_file_path_raw)
 if try_load_existing_model and model_file_path.exists():
