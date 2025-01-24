@@ -7,7 +7,7 @@ model_dir = r'/model'
 # linux
 
 train_data_ratio = 0.9
-context_size = 10
+context_size = 1000
 batch_size = 32
 num_embeddings = 16
 try_load_existing_model = True
@@ -97,12 +97,15 @@ class LargeLanguageModel(torch.nn.Module):
     def __init__(self, charset_size):
         super().__init__()
         self.token_embedding_table = torch.nn.Embedding(charset_size, num_embeddings)
+        self.pos_embedding_table = torch.nn.Embedding(context_size, num_embeddings)
         self.lm_head = torch.nn.Linear(num_embeddings, charset_size)
 
 
     def forward(self, idx, target=None):
+        B, T = idx.shape
         token_embedding = self.token_embedding_table(idx) # B, T, num_embeddings
-        logits = self.lm_head(token_embedding) # B, T, charset_size
+        pos_embedding = self.pos_embedding_table(torch.arange(T)) # T, num_embeddings
+        logits = self.lm_head(token_embedding + pos_embedding) # B, T, charset_size
         if target is None:
             return logits, None
         B, T, C = logits.shape
