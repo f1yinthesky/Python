@@ -9,11 +9,12 @@ model_dir = r'/model'
 train_data_ratio = 0.9
 context_size = 10
 batch_size = 32
+num_embeddings = 16
 try_load_existing_model = True
-need_save_model = False
+need_save_model = True
 learning_rate = 1e-3
-# val loss 5.2-5.3 18000 steps seems the limit
-learning_iterations = 0
+# val loss 5.4-5.5 2000 steps seems the limit
+learning_iterations = 2000
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
@@ -95,10 +96,13 @@ def get_batch(split:str):
 class LargeLanguageModel(torch.nn.Module):
     def __init__(self, charset_size):
         super().__init__()
-        self.token_embedding_table = torch.nn.Embedding(charset_size, charset_size)
+        self.token_embedding_table = torch.nn.Embedding(charset_size, num_embeddings)
+        self.lm_head = torch.nn.Linear(num_embeddings, charset_size)
+
 
     def forward(self, idx, target=None):
-        logits = self.token_embedding_table(idx)
+        token_embedding = self.token_embedding_table(idx) # B, T, num_embeddings
+        logits = self.lm_head(token_embedding) # B, T, charset_size
         if target is None:
             return logits, None
         B, T, C = logits.shape
