@@ -7,14 +7,16 @@ model_dir = r'/model'
 # linux
 
 train_data_ratio = 0.9
-context_size = 1000
+context_size = 100
 batch_size = 32
 num_embeddings = 16
 try_load_existing_model = True
-need_save_model = True
+need_save_model = False
 learning_rate = 1e-3
-# val loss 5.4-5.5 2000 steps seems the limit
-learning_iterations = 2000
+# bllm val loss 5.2
+# 16 num embedding val loss 5.4-5.5
+# single head llm val loss 5.3 with 8000  
+learning_iterations = 0
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
@@ -89,15 +91,34 @@ def get_batch(split:str):
     y = torch.stack([data[i+1:i+context_size+1] for i in train_index])
     return x, y
 
-
 # Stage 1 end
 
 # Stage 2 model setting
+class Head(torch.nn.Module):
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = torch.nn.Linear(num_embeddings, head_size)
+        self.query = torch.nn.Linear(num_embeddings, head_size)
+        self.value = torch.nn.Linear(num_embeddings, head_size)
+        self.register_buffer('tril', torch.tril(torch.ones(context_size, context_size)))
+
+    def forward(self, x):
+        B, T, C = x.shape
+        k = self.key(x)
+        q = self.query(x)
+        wei = k @ q.transpose(-2, -1) * C ** (-0.5)
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = torch.nn.functional.softmax(wei, dim=-1)
+        v = self.value(x)
+        out = wei @ v
+        return out
+
 class LargeLanguageModel(torch.nn.Module):
     def __init__(self, charset_size):
         super().__init__()
         self.token_embedding_table = torch.nn.Embedding(charset_size, num_embeddings)
         self.pos_embedding_table = torch.nn.Embedding(context_size, num_embeddings)
+        self.sa_head = Head(num_embeddings)
         self.lm_head = torch.nn.Linear(num_embeddings, charset_size)
 
 
@@ -105,7 +126,9 @@ class LargeLanguageModel(torch.nn.Module):
         B, T = idx.shape
         token_embedding = self.token_embedding_table(idx) # B, T, num_embeddings
         pos_embedding = self.pos_embedding_table(torch.arange(T)) # T, num_embeddings
-        logits = self.lm_head(token_embedding + pos_embedding) # B, T, charset_size
+        x = token_embedding + pos_embedding # B, T, num_embeddings
+        x = self.sa_head(x) # B, T, num_embeddings
+        logits = self.lm_head(x) # B, T, charset_size
         if target is None:
             return logits, None
         B, T, C = logits.shape
@@ -116,7 +139,7 @@ class LargeLanguageModel(torch.nn.Module):
     
     def generate(self, idx, max_new_tokens):
         for _ in range(max_new_tokens):
-            logits, _loss = self(idx)
+            logits, _loss = self(idx[:, -context_size:])
             logits = logits[:, -1, :]
             probs = torch.nn.functional.softmax(logits, dim=-1)
             new_char = torch.multinomial(probs, num_samples=1)
@@ -187,5 +210,5 @@ save_model(model, model_file_path)
 # Stage 3 end
 # Stage 4 model generation
 logger.info(f"generated text at after model trained")
-generate_text(model, 500)
+generate_text(model, 1000)
 # Stage 4 end
