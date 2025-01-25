@@ -10,13 +10,14 @@ train_data_ratio = 0.9
 context_size = 100
 batch_size = 32
 num_embeddings = 16
-try_load_existing_model = True
-need_save_model = False
+num_heads = 4
+try_load_existing_model = False
+need_save_model = True
 learning_rate = 1e-3
 # bllm val loss 5.2
 # 16 num embedding val loss 5.4-5.5
 # single head llm val loss 5.3 with 8000  
-learning_iterations = 0
+learning_iterations = 1000
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
@@ -113,12 +114,43 @@ class Head(torch.nn.Module):
         out = wei @ v
         return out
 
+class MultiHeadAttention(torch.nn.Module):
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = torch.nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = torch.nn.Linear(num_embeddings, num_embeddings)
+    def forward(self,x):
+        return self.proj(torch.cat([head(x) for head in self.heads], dim = -1))
+
+class FeedFoward(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = torch.nn.Sequential(
+            torch.nn.Linear(num_embeddings, num_embeddings),
+            torch.nn.ReLU(),
+        )
+    def forward(self, x):
+        return self.net(x)
+
+class Block(torch.nn.Module):
+    def __init__(self, num_embeddings, num_heads):
+        super().__init__()
+        self.mul_head = MultiHeadAttention(num_heads, num_embeddings // num_heads)
+        self.ffwd = FeedFoward()
+
+    def forward(self, x):
+        x = x + self.mul_head(x)
+        x = x + self.ffwd(x)
+        return x
+    
 class LargeLanguageModel(torch.nn.Module):
     def __init__(self, charset_size):
         super().__init__()
         self.token_embedding_table = torch.nn.Embedding(charset_size, num_embeddings)
         self.pos_embedding_table = torch.nn.Embedding(context_size, num_embeddings)
-        self.sa_head = Head(num_embeddings)
+        self.blocks = torch.nn.Sequential(Block(num_embeddings, num_heads),
+                                           Block(num_embeddings, num_heads),
+                                           Block(num_embeddings, num_heads))
         self.lm_head = torch.nn.Linear(num_embeddings, charset_size)
 
 
@@ -127,7 +159,7 @@ class LargeLanguageModel(torch.nn.Module):
         token_embedding = self.token_embedding_table(idx) # B, T, num_embeddings
         pos_embedding = self.pos_embedding_table(torch.arange(T)) # T, num_embeddings
         x = token_embedding + pos_embedding # B, T, num_embeddings
-        x = self.sa_head(x) # B, T, num_embeddings
+        x = self.blocks(x) # B, T, num_embeddings
         logits = self.lm_head(x) # B, T, charset_size
         if target is None:
             return logits, None
