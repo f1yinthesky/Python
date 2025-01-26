@@ -20,7 +20,7 @@ learning_rate = 3e-4
 # 16 num embedding val loss 5.4-5.5
 # single head llm val loss 5.3 with 8000
 # 6 head llm val loss 5.0  
-learning_iterations = 15000
+learning_iterations = 1000
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
