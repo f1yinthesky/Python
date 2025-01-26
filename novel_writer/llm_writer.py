@@ -9,15 +9,18 @@ model_dir = r'/model'
 train_data_ratio = 0.9
 context_size = 100
 batch_size = 32
-num_embeddings = 16
-num_heads = 4
-try_load_existing_model = False
+num_embeddings = 24
+num_heads = 3
+num_blocks = 6
+drop_rate = 0.2
+try_load_existing_model = True
 need_save_model = True
-learning_rate = 1e-3
+learning_rate = 3e-4
 # bllm val loss 5.2
 # 16 num embedding val loss 5.4-5.5
-# single head llm val loss 5.3 with 8000  
-learning_iterations = 1000
+# single head llm val loss 5.3 with 8000
+# 6 head llm val loss 5.0  
+learning_iterations = 15000
 eval_interval = 50
 eval_iters = 20
 # Stage 0 end
@@ -102,6 +105,7 @@ class Head(torch.nn.Module):
         self.query = torch.nn.Linear(num_embeddings, head_size)
         self.value = torch.nn.Linear(num_embeddings, head_size)
         self.register_buffer('tril', torch.tril(torch.ones(context_size, context_size)))
+        self.dropout = torch.nn.Dropout(drop_rate)
 
     def forward(self, x):
         B, T, C = x.shape
@@ -110,6 +114,7 @@ class Head(torch.nn.Module):
         wei = k @ q.transpose(-2, -1) * C ** (-0.5)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = torch.nn.functional.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
         v = self.value(x)
         out = wei @ v
         return out
@@ -119,17 +124,23 @@ class MultiHeadAttention(torch.nn.Module):
         super().__init__()
         self.heads = torch.nn.ModuleList([Head(head_size) for _ in range(num_heads)])
         self.proj = torch.nn.Linear(num_embeddings, num_embeddings)
+        self.dropout = torch.nn.Dropout(drop_rate)
     def forward(self,x):
-        return self.proj(torch.cat([head(x) for head in self.heads], dim = -1))
+        x = torch.cat([head(x) for head in self.heads], dim = -1)
+        x = self.proj(x)
+        x = self.dropout(x)
+        return x
 
 class FeedFoward(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(num_embeddings, num_embeddings),
+            torch.nn.Linear(num_embeddings, 4 * num_embeddings),
             torch.nn.ReLU(),
+            torch.nn.Linear(4 * num_embeddings, num_embeddings),
+            torch.nn.Dropout(drop_rate),
         )
-    def forward(self, x):
+    def forward(self, x): 
         return self.net(x)
 
 class Block(torch.nn.Module):
@@ -137,20 +148,21 @@ class Block(torch.nn.Module):
         super().__init__()
         self.mul_head = MultiHeadAttention(num_heads, num_embeddings // num_heads)
         self.ffwd = FeedFoward()
+        self.ln1 = torch.nn.LayerNorm(num_embeddings)
+        self.ln2 = torch.nn.LayerNorm(num_embeddings)
 
     def forward(self, x):
-        x = x + self.mul_head(x)
-        x = x + self.ffwd(x)
+        x = x + self.mul_head(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
         return x
-    
+
 class LargeLanguageModel(torch.nn.Module):
     def __init__(self, charset_size):
         super().__init__()
         self.token_embedding_table = torch.nn.Embedding(charset_size, num_embeddings)
         self.pos_embedding_table = torch.nn.Embedding(context_size, num_embeddings)
-        self.blocks = torch.nn.Sequential(Block(num_embeddings, num_heads),
-                                           Block(num_embeddings, num_heads),
-                                           Block(num_embeddings, num_heads))
+        self.blocks = torch.nn.Sequential(*[Block(num_embeddings, num_heads) for _ in range(num_blocks)])
+        self.ln = torch.nn.LayerNorm(num_embeddings)
         self.lm_head = torch.nn.Linear(num_embeddings, charset_size)
 
 
@@ -160,6 +172,7 @@ class LargeLanguageModel(torch.nn.Module):
         pos_embedding = self.pos_embedding_table(torch.arange(T)) # T, num_embeddings
         x = token_embedding + pos_embedding # B, T, num_embeddings
         x = self.blocks(x) # B, T, num_embeddings
+        x = self.ln(x) # B, T, num_embeddings
         logits = self.lm_head(x) # B, T, charset_size
         if target is None:
             return logits, None
