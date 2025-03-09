@@ -1,7 +1,7 @@
 # Stage 0 all parameters
 
 # windows
-root_dir = r'D:/CodeBase/Clara/chatbot/novel_writer'
+root_dir = r'C:/Code/Python/novel_writer'
 train_data = r'train_data/shendiaoxialv.txt'
 model_dir = r'/model'
 # linux
@@ -14,7 +14,7 @@ num_heads = 3
 num_blocks = 6
 drop_rate = 0.2
 try_load_existing_model = True
-need_save_model = True
+need_save_model = False
 learning_rate = 3e-4
 # bllm val loss 5.2
 # 16 num embedding val loss 5.4-5.5
