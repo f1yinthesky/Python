@@ -55,6 +55,8 @@ def duplicateFiles(one_dir: str) -> List[List[str]]:
                 if filecmp.cmp(left_file, right_file, shallow=False):
                     left_duplicate.append(right_file)
                     used_file.add(right_file)
+                else:
+                    print("hash collision")
             if len(left_duplicate) > 1:
                 answer.append(left_duplicate)
     return answer
@@ -62,7 +64,7 @@ def duplicateFiles(one_dir: str) -> List[List[str]]:
 def main() -> None:
     one_dir = r"C:\Users\huang\Downloads\tmp"
     print(duplicateFiles(one_dir))
-
+    print(filecmp.cmp('C:\\Users\\huang\\Downloads\\tmp\\1\\Clara G3 T2 report.pdf', 'C:\\Users\\huang\\Downloads\\tmp\\Clara G3 T2 report.pdf', shallow=False))
 
 if __name__ == '__main__':
     main()
