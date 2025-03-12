@@ -64,13 +64,14 @@ async def main():
     domain_name = getUrlDomain(first_url)
     url_queue.put(NormalizeUrl(first_url))
 
+    start_time = time.perf_counter()
     visited_url = set()
     while not url_queue.empty():
         all_workers = []
-        for i in range(10):
+        for i in range(1):
             all_workers.append(visitOneUrl(url_queue, visited_url, domain_name))
         await asyncio.gather(*all_workers)
-
+    print(f"time used {time.perf_counter() - start_time}s")
 
 
 if __name__=="__main__":
