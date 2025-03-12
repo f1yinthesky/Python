@@ -6,10 +6,10 @@ from urllib import parse
 import time
 
 def NormalizeUrl(url:str) -> str:
-    return parse.urlparse(url)._replace(fragment="").geturl().lower()
+    return parse.urldefrag(url).url.lower()
 
 def getUrlDomain(url:str) -> str:
-    return parse.urlparse(NormalizeUrl(url)).netloc
+    return parse.urlparse(NormalizeUrl(url)).netloc.split(":")[0]
 
 async def genUrls(url: str) -> List[str]:
     await asyncio.sleep(2)
