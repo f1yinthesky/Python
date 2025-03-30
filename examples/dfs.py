@@ -1,6 +1,5 @@
 from typing import List, Set
 import asyncio
-from queue import SimpleQueue
 from datetime import datetime
 from urllib import parse
 import time
@@ -44,31 +43,32 @@ async def genUrlsNew(url: str) -> List[str]:
     new_urls = await asyncio.to_thread(getUrlsNew, url)
     return new_urls
 
-async def visitOneUrl(url_queue: SimpleQueue, visited_url: Set[str], domain_name:str) -> None:
+async def visitOneUrl(url_queue: asyncio.Queue, visited_url: Set[str], domain_name:str) -> None:
     if url_queue.empty():
         return
-    current_url = url_queue.get()
+    current_url = await url_queue.get()
     print(f"{datetime.now()} url {current_url}")
+    all_urls = []
     if current_url not in visited_url:
         all_urls = await genUrlsNew(current_url)
-    visited_url.add(current_url)
+        visited_url.add(current_url)
     for url in all_urls:
         url = NormalizeUrl(url)
         if url not in visited_url and getUrlDomain(url) == domain_name:
-            url_queue.put(url)
+            await url_queue.put(url)
 
 
 async def main():
-    url_queue = SimpleQueue()
+    url_queue = asyncio.Queue()
     first_url = "https://A.com#dd"
     domain_name = getUrlDomain(first_url)
-    url_queue.put(NormalizeUrl(first_url))
+    await url_queue.put(NormalizeUrl(first_url))
 
     start_time = time.perf_counter()
     visited_url = set()
     while not url_queue.empty():
         all_workers = []
-        for i in range(1):
+        for i in range(100):
             all_workers.append(visitOneUrl(url_queue, visited_url, domain_name))
         await asyncio.gather(*all_workers)
     print(f"time used {time.perf_counter() - start_time}s")
