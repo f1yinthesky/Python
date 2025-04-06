@@ -8,7 +8,7 @@ def NormalizeUrl(url:str) -> str:
     return parse.urldefrag(url).url.lower()
 
 def getUrlDomain(url:str) -> str:
-    return parse.urlparse(NormalizeUrl(url)).netloc.split(":")[0]
+    return parse.urlparse(NormalizeUrl(url)).hostname
 
 async def genUrls(url: str) -> List[str]:
     await asyncio.sleep(2)
